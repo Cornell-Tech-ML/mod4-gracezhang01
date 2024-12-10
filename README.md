@@ -37,7 +37,7 @@ The files that will be synced are:
 
 ### 4.5 Training Result for Sentiment Analysis and MNIST Multiclass Classification
 
-* Sentiment Analysis Results: [sentiment.txt](sentiment.txt)
+* Sentiment Analysis Results: [sentiment.txt](sentiment.txt) **Note: Early stopping applied at epoch 45 before overfitting.**
 * MNIST Multiclass Classification Results 1: [mnist.txt](mnist.txt) **Note: Training log is incomplete, but highest accuracy reached at epoch 44.**
 * MNIST Multiclass Classification Results 2: [mnist1.txt](mnist1.txt) **Note: Early stopping applied, highest accuracy reached at epoch 23.**
 
