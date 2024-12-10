@@ -42,8 +42,8 @@ class Conv2d(minitorch.Module):
 
     def forward(self, input):
         # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
-
+        #raise NotImplementedError("Need to implement for Task 4.5")
+        return minitorch.conv2d(input, self.weights.value) + self.bias.value
 
 class Network(minitorch.Module):
     """
@@ -68,11 +68,39 @@ class Network(minitorch.Module):
         self.out = None
 
         # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        #raise NotImplementedError("Need to implement for Task 4.5")
+        self.conv_output1 = None
+        self.conv_output2 = None
+        #apply a conv layer with 4 output channels and a 3x3 kernel followed by a ReLU
+        self.conv1 = Conv2d(1, 4, 3, 3)
+        #apply a conv layer with 8 output channels and a 3x3 kernel followed by a ReLU
+        self.conv2 = Conv2d(4, 8, 3, 3)
+        #apply a Linear to size 64 followed by a ReLU and Dropout with rate 25%
+        self.linear1 = Linear(392, 64)
+        #apply a Linear to size C (number of classes)
+        self.linear2 = Linear(64, C)
 
     def forward(self, x):
         # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        #raise NotImplementedError("Need to implement for Task 4.5")
+        #step 1: apply a conv layer followed by a ReLU
+        self.conv_output1 = self.conv1.forward(x).relu()
+        #step 2: apply a conv layer followed by a ReLU
+        self.conv_output2 = self.conv2.forward(self.conv_output1).relu()
+        #step 3: apply 2D pooling (either Avg or Max) with 4x4 kernel
+        #step 4: flatten channels, height, and width
+        pooled_output = minitorch.avgpool2d(self.conv_output2, (4,4)).view(BATCH, 392)
+        #step 5: apply a Linear to size 64 followed by a ReLU and Dropout with rate 25%
+        lin_output1 = self.linear1.forward(pooled_output).relu()
+        if not self.training: #if not training, apply dropout
+            dropout_out = minitorch.dropout(lin_output1, 0.25, True)
+        else:
+            dropout_out = minitorch.dropout(lin_output1, 0.25, False)
+        #step 6: apply a Linear to size C (number of classes)
+        lin_output2 = self.linear2.forward(dropout_out)
+        #step 7: apply a logsoftmax over the class dimension
+        res = minitorch.logsoftmax(lin_output2, dim=1)
+        return res
 
 
 def make_mnist(start, stop):
@@ -88,8 +116,9 @@ def make_mnist(start, stop):
 
 
 def default_log_fn(epoch, total_loss, correct, total, losses, model):
-    print(f"Epoch {epoch} loss {total_loss} valid acc {correct}/{total}")
-
+    #print(f"Epoch {epoch} loss {total_loss} valid acc {correct}/{total}")
+    with open("mnist2.txt", "a") as log_file:
+        log_file.write(f"Epoch {epoch} loss {total_loss} valid acc {correct}/{total}\n")
 
 class ImageTrain:
     def __init__(self):
