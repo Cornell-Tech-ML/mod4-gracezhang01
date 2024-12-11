@@ -7,8 +7,6 @@ from numba import njit as _njit
 from .autodiff import Context
 from .tensor import Tensor
 from .tensor_data import (
-    MAX_DIMS,
-    Index,
     Shape,
     Strides,
     Storage,
@@ -21,7 +19,7 @@ from .tensor_functions import Function
 Fn = TypeVar("Fn")
 
 
-def njit(fn: Fn, **kwargs: Any) -> Fn:
+def njit(fn: Fn, **kwargs: Any) -> Fn:  # noqa: D103
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -91,7 +89,30 @@ def _tensor_conv1d(
     s2 = weight_strides
 
     # TODO: Implement for Task 4.1.
-    raise NotImplementedError("Need to implement for Task 4.1")
+    # raise NotImplementedError("Need to implement for Task 4.1")
+    for batch_idx in prange(batch):
+        for output_channel_idx in prange(out_channels):
+            for pos in prange(out_width):
+                result_pos = (
+                    batch_idx * out_strides[0]
+                    + output_channel_idx * out_strides[1]
+                    + pos * out_strides[2]
+                )
+                for in_ch in prange(in_channels):
+                    if reverse:
+                        window_start = max(pos - kw + 1, 0)
+                        window_end = min(pos + 1, width)
+                    else:
+                        window_start = min(pos, width - 1)
+                        window_end = min(pos + kw, width)
+                    for k in prange(window_start, window_end):
+                        input_pos = batch_idx * s1[0] + in_ch * s1[1] + k * s1[2]
+                        kernel_pos = (
+                            output_channel_idx * s2[0]
+                            + in_ch * s2[1]
+                            + (k - window_start) * s2[2]
+                        )
+                        out[result_pos] += input[input_pos] * weight[kernel_pos]
 
 
 tensor_conv1d = njit(_tensor_conv1d, parallel=True)
@@ -126,7 +147,7 @@ class Conv1dFun(Function):
         return output
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:  # noqa: D102
         input, weight = ctx.saved_values
         batch, in_channels, w = input.shape
         out_channels, in_channels, kw = weight.shape
@@ -216,11 +237,50 @@ def _tensor_conv2d(
     s1 = input_strides
     s2 = weight_strides
     # inners
-    s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
-    s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
+    s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]  # noqa: F841
+    s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]  # noqa: F841
 
     # TODO: Implement for Task 4.2.
-    raise NotImplementedError("Need to implement for Task 4.2")
+    # raise NotImplementedError("Need to implement for Task 4.2")
+    # iterate over each element in the output tensor
+    for idx in prange(out_size):
+        # setup position tracking arrays
+        output_pos = np.zeros(4, np.int32)
+        kernel_pos = np.zeros(4, np.int32)
+        input_pos = np.zeros(4, np.int32)
+        # convert flat index to 4D position
+        to_index(idx, out_shape, output_pos)
+        b, oc, y, x = output_pos
+        res = 0.0
+        for in_ch in range(in_channels):
+            for kernel_h in range(kh):
+                for kernel_w in range(kw):
+                    if not reverse:
+                        # forward convolution
+                        kernel_pos[0], kernel_pos[1] = oc, in_ch
+                        kernel_pos[2], kernel_pos[3] = kernel_h, kernel_w
+                        input_pos[0], input_pos[1] = b, in_ch
+                        input_pos[2], input_pos[3] = y + kernel_h, x + kernel_w
+                        if (y + kernel_h < height) and (
+                            x + kernel_w < width
+                        ):  # check if the kernel is within the input tensor bounds
+                            kernel_index = index_to_position(kernel_pos, s2)
+                            input_index = index_to_position(input_pos, s1)
+                            res += weight[kernel_index] * input[input_index]
+                    else:
+                        # reverse convolution
+                        kernel_pos[0], kernel_pos[1] = oc, in_ch
+                        kernel_pos[2], kernel_pos[3] = kernel_h, kernel_w
+                        input_pos[0], input_pos[1] = b, in_ch
+                        input_pos[2], input_pos[3] = y - kernel_h, x - kernel_w
+                        if (y - kernel_h >= 0) and (
+                            x - kernel_w >= 0
+                        ):  # check if the kernel is within the input tensor bounds
+                            kernel_index = index_to_position(kernel_pos, s2)
+                            input_index = index_to_position(input_pos, s1)
+                            res += weight[kernel_index] * input[input_index]
+        out_pos = index_to_position(output_pos, out_strides)
+        out[out_pos] = res
 
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
@@ -253,7 +313,7 @@ class Conv2dFun(Function):
         return output
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:  # noqa: D102
         input, weight = ctx.saved_values
         batch, in_channels, h, w = input.shape
         out_channels, in_channels, kh, kw = weight.shape

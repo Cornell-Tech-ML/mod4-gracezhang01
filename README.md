@@ -34,3 +34,8 @@ python sync_previous_module.py previous-module-dir current-module-dir
 The files that will be synced are:
 
         minitorch/tensor_data.py minitorch/tensor_functions.py minitorch/tensor_ops.py minitorch/operators.py minitorch/scalar.py minitorch/scalar_functions.py minitorch/module.py minitorch/autodiff.py minitorch/module.py project/run_manual.py project/run_scalar.py project/run_tensor.py minitorch/operators.py minitorch/module.py minitorch/autodiff.py minitorch/tensor.py minitorch/datasets.py minitorch/testing.py minitorch/optim.py minitorch/tensor_ops.py minitorch/fast_ops.py minitorch/cuda_ops.py project/parallel_check.py tests/test_tensor_general.py
+
+### 4.5 Training Result for Sentiment Analysis and MNIST Multiclass Classification
+
+* Sentiment Analysis Results: [sentiment.txt](sentiment.txt) **Note: Early stopping applied at epoch 45 before overfitting.**
+* MNIST Multiclass Classification Results: [mnist.txt](mnist2.txt) **Note: Highest validation accuracy with mostly 16/16 at epoch 29, early stopping applied after this.**

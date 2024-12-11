@@ -35,7 +35,8 @@ class Conv1d(minitorch.Module):
 
     def forward(self, input):
         # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        #raise NotImplementedError("Need to implement for Task 4.5")
+        return minitorch.conv1d(input, self.weights.value) + self.bias.value
 
 
 class CNNSentimentKim(minitorch.Module):
@@ -62,14 +63,34 @@ class CNNSentimentKim(minitorch.Module):
         super().__init__()
         self.feature_map_size = feature_map_size
         # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        #raise NotImplementedError("Need to implement for Task 4.5")
+        self.conv_layer_1 = Conv1d(embedding_size, feature_map_size, filter_sizes[0])
+        self.conv_layer_2 = Conv1d(embedding_size, feature_map_size, filter_sizes[1])
+        self.conv_layer_3 = Conv1d(embedding_size, feature_map_size, filter_sizes[2])
+        self.linear = Linear(feature_map_size, 1)
+        self.dropout = dropout
 
     def forward(self, embeddings):
         """
         embeddings tensor: [batch x sentence length x embedding dim]
         """
         # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        #raise NotImplementedError("Need to implement for Task 4.5")
+        permuted_in = embeddings.permute(0, 2, 1)
+        #apply the conv layers
+        conv_out_1 = self.conv_layer_1(permuted_in).relu()
+        conv_out_2 = self.conv_layer_2(permuted_in).relu()
+        conv_out_3 = self.conv_layer_3(permuted_in).relu()
+        #apply max over time
+        max_over_time_1 = minitorch.nn.max(conv_out_1, dim=2)
+        max_over_time_2 = minitorch.nn.max(conv_out_2, dim=2)
+        max_over_time_3 = minitorch.nn.max(conv_out_3, dim=2)
+        #apply linear layer
+        pooled_out = max_over_time_1 + max_over_time_2 + max_over_time_3
+        linear_out = self.linear(pooled_out.view(pooled_out.shape[0], self.feature_map_size))
+        dropout_out = minitorch.dropout(linear_out, self.dropout, self.mode == "eval")
+        res = dropout_out.sigmoid().view(dropout_out.shape[0])
+        return res
 
 
 # Evaluation helper methods
@@ -256,7 +277,7 @@ if __name__ == "__main__":
     train_size = 450
     validation_size = 100
     learning_rate = 0.01
-    max_epochs = 250
+    max_epochs = 50 #200
 
     (X_train, y_train), (X_val, y_val) = encode_sentiment_data(
         load_dataset("glue", "sst2"),
